@@ -41,16 +41,69 @@ interface Passenger {
   documentNumber: string
 }
 
+interface FieldError {
+  [key: string]: string
+}
+
+const validateEmail = (email: string): string | null => {
+  if (!email) return 'El email es obligatorio'
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+  if (!emailRegex.test(email)) return 'Ingresa un email válido'
+  return null
+}
+
+const validatePhone = (phone: string): string | null => {
+  if (!phone) return 'El teléfono es obligatorio'
+  const digits = phone.replace(/\D/g, '')
+  if (digits.length < 10) return 'El teléfono debe tener al menos 10 dígitos'
+  if (digits.length > 14) return 'El teléfono no puede tener más de 14 dígitos'
+  return null
+}
+
+const validateName = (name: string, field: string): string | null => {
+  if (!name || name.trim().length === 0) return `El ${field} es obligatorio`
+  if (name.trim().length < 2) return `El ${field} debe tener al menos 2 caracteres`
+  if (name.trim().length > 50) return `El ${field} no puede exceder 50 caracteres`
+  if (!/^[a-zA-ZáéíóúÁÉÍÓÚñÑ\s]+$/.test(name.trim())) return `El ${field} solo puede contener letras`
+  return null
+}
+
+const validateDateOfBirth = (date: string): string | null => {
+  if (!date) return 'La fecha de nacimiento es obligatoria'
+  const birthDate = new Date(date)
+  const today = new Date()
+  const age = Math.floor((today.getTime() - birthDate.getTime()) / (365.25 * 24 * 60 * 60 * 1000))
+  if (birthDate > today) return 'La fecha de nacimiento no puede ser futura'
+  if (age < 18) return 'El pasajero debe ser mayor de 18 años'
+  if (age > 120) return 'Ingresa una fecha de nacimiento válida'
+  return null
+}
+
+const validateDocument = (doc: string, type: string): string | null => {
+  if (!doc || doc.trim().length === 0) return 'El número de documento es obligatorio'
+  if (type === 'passport') {
+    if (doc.trim().length < 6) return 'El pasaporte debe tener al menos 6 caracteres'
+    if (doc.trim().length > 20) return 'El pasaporte no puede exceder 20 caracteres'
+  } else if (type === 'national_identity_document') {
+    if (!/^\d{13}$|^\d{18}$/.test(doc.trim())) return 'El INE debe tener 13 o 18 dígitos'
+  } else if (type === 'driving_licence') {
+    if (doc.trim().length < 6) return 'La licencia debe tener al menos 6 caracteres'
+  }
+  return null
+}
+
 export default function BookingPage() {
   const router = useRouter()
   const [offer, setOffer] = useState<Offer | null>(null)
   const [loading, setLoading] = useState(false)
   const [bookingResult, setBookingResult] = useState<any>(null)
-  const [error, setError] = useState<string | null>(null)
+  const [serverError, setServerError] = useState<string | null>(null)
   const [passengers, setPassengers] = useState<Passenger[]>([
     { firstName: '', lastName: '', dateOfBirth: '', documentType: 'passport', documentNumber: '' }
   ])
   const [contact, setContact] = useState({ email: '', phone: '' })
+  const [fieldErrors, setFieldErrors] = useState<FieldError>({})
+  const [touchedFields, setTouchedFields] = useState<Set<string>>(new Set())
 
   useEffect(() => {
     const selected = sessionStorage.getItem('selectedOffer')
@@ -68,29 +121,112 @@ export default function BookingPage() {
     }
   }, [router])
 
+  const handleBlur = (fieldName: string) => {
+    setTouchedFields(prev => new Set(prev).add(fieldName))
+    validateAllFields()
+  }
+
+  const validateAllFields = () => {
+    const errors: FieldError = {}
+
+    const emailError = validateEmail(contact.email)
+    if (emailError) errors['email'] = emailError
+
+    const phoneError = validatePhone(contact.phone)
+    if (phoneError) errors['phone'] = phoneError
+
+    passengers.forEach((p, i) => {
+      const firstNameError = validateName(p.firstName, 'nombre')
+      if (firstNameError) errors[`passenger_${i}_firstName`] = firstNameError
+
+      const lastNameError = validateName(p.lastName, 'apellido')
+      if (lastNameError) errors[`passenger_${i}_lastName`] = lastNameError
+
+      const dobError = validateDateOfBirth(p.dateOfBirth)
+      if (dobError) errors[`passenger_${i}_dateOfBirth`] = dobError
+
+      const docError = validateDocument(p.documentNumber, p.documentType)
+      if (docError) errors[`passenger_${i}_documentNumber`] = docError
+    })
+
+    setFieldErrors(errors)
+    return Object.keys(errors).length === 0
+  }
+
   const handlePassengerChange = (index: number, field: keyof Passenger, value: string) => {
     const updated = [...passengers]
     updated[index] = { ...updated[index], [field]: value }
     setPassengers(updated)
+
+    const fieldName = `passenger_${index}_${field}`
+    if (touchedFields.has(fieldName)) {
+      let error: string | null = null
+      if (field === 'firstName') error = validateName(value, 'nombre')
+      else if (field === 'lastName') error = validateName(value, 'apellido')
+      else if (field === 'dateOfBirth') error = validateDateOfBirth(value)
+      else if (field === 'documentNumber') error = validateDocument(value, updated[index].documentType)
+
+      setFieldErrors(prev => {
+        const newErrors = { ...prev }
+        if (error) newErrors[fieldName] = error
+        else delete newErrors[fieldName]
+        return newErrors
+      })
+    }
+  }
+
+  const handleContactChange = (field: 'email' | 'phone', value: string) => {
+    setContact(prev => ({ ...prev, [field]: value }))
+
+    const fieldName = field
+    if (touchedFields.has(fieldName)) {
+      let error: string | null = null
+      if (field === 'email') error = validateEmail(value)
+      else if (field === 'phone') error = validatePhone(value)
+
+      setFieldErrors(prev => {
+        const newErrors = { ...prev }
+        if (error) newErrors[fieldName] = error
+        else delete newErrors[fieldName]
+        return newErrors
+      })
+    }
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+    setServerError(null)
+
+    touchedFields.add('email')
+    touchedFields.add('phone')
+    passengers.forEach((_, i) => {
+      touchedFields.add(`passenger_${i}_firstName`)
+      touchedFields.add(`passenger_${i}_lastName`)
+      touchedFields.add(`passenger_${i}_dateOfBirth`)
+      touchedFields.add(`passenger_${i}_documentNumber`)
+    })
+
+    if (!validateAllFields()) {
+      setServerError('Por favor corrige los errores en el formulario')
+      return
+    }
+
     setLoading(true)
-    setError(null)
 
     try {
       const passengersForApi = passengers.map((p, i) => ({
         id: `passenger_${i + 1}`,
         type: 'adult',
         title: 'mr',
-        first_name: p.firstName,
-        last_name: p.lastName,
+        first_name: p.firstName.trim(),
+        last_name: p.lastName.trim(),
         born_on: p.dateOfBirth,
-        email: contact.email || 'cliente@example.com',
-        phone_number: String(contact.phone.replace(/\D/g, '').startsWith('52') ? '+' + contact.phone.replace(/\D/g, '') : '+52' + contact.phone.replace(/\D/g, '')),
+        email: contact.email.trim().toLowerCase(),
+        phone_number: contact.phone.replace(/\D/g, '').startsWith('52')
+          ? '+' + contact.phone.replace(/\D/g, '')
+          : '+52' + contact.phone.replace(/\D/g, ''),
         document_type: p.documentType,
-        document_number: p.documentNumber,
+        document_number: p.documentNumber.trim(),
       }))
 
       const response = await fetch('/api/order', {
@@ -114,10 +250,10 @@ export default function BookingPage() {
         sessionStorage.removeItem('searchResults')
         sessionStorage.removeItem('searchParams')
       } else {
-        setError(data.error || 'Error al realizar la reservación')
+        setServerError(data.error || 'Error al realizar la reservación')
       }
     } catch (err) {
-      setError('Error al conectar con el servidor')
+      setServerError('Error al conectar con el servidor')
     } finally {
       setLoading(false)
     }
@@ -180,6 +316,15 @@ export default function BookingPage() {
       business: 'Ejecutiva',
     }
     return classes[cabin] || cabin
+  }
+
+  const getInputClass = (fieldName: string) => {
+    const hasError = touchedFields.has(fieldName) && fieldErrors[fieldName]
+    return `w-full bg-white/5 border rounded-xl px-4 py-3 text-white focus:outline-none transition-colors ${
+      hasError
+        ? 'border-red-500/50 focus:border-red-500'
+        : 'border-white/10 focus:border-volaris-red/50'
+    }`
   }
 
   if (bookingResult) {
@@ -281,22 +426,38 @@ export default function BookingPage() {
                     <input
                       type="email"
                       value={contact.email}
-                      onChange={(e) => setContact({ ...contact, email: e.target.value })}
-                      required
-                      className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-volaris-red/50 transition-colors"
+                      onChange={(e) => handleContactChange('email', e.target.value)}
+                      onBlur={() => handleBlur('email')}
                       placeholder="tu@email.com"
+                      className={getInputClass('email')}
                     />
+                    {touchedFields.has('email') && fieldErrors['email'] && (
+                      <p className="text-red-400 text-xs mt-1 flex items-center gap-1">
+                        <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
+                          <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                        </svg>
+                        {fieldErrors['email']}
+                      </p>
+                    )}
                   </div>
                   <div>
                     <label className="text-white/60 text-sm mb-1 block">Teléfono</label>
                     <input
                       type="tel"
                       value={contact.phone}
-                      onChange={(e) => setContact({ ...contact, phone: e.target.value })}
-                      required
-                      className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-volaris-red/50 transition-colors"
+                      onChange={(e) => handleContactChange('phone', e.target.value)}
+                      onBlur={() => handleBlur('phone')}
                       placeholder="+52 55 1234 5678"
+                      className={getInputClass('phone')}
                     />
+                    {touchedFields.has('phone') && fieldErrors['phone'] && (
+                      <p className="text-red-400 text-xs mt-1 flex items-center gap-1">
+                        <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
+                          <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                        </svg>
+                        {fieldErrors['phone']}
+                      </p>
+                    )}
                   </div>
                 </div>
               </div>
@@ -314,9 +475,18 @@ export default function BookingPage() {
                         type="text"
                         value={passenger.firstName}
                         onChange={(e) => handlePassengerChange(index, 'firstName', e.target.value)}
-                        required
-                        className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-volaris-red/50 transition-colors"
+                        onBlur={() => handleBlur(`passenger_${index}_firstName`)}
+                        placeholder="Como aparece en tu documento"
+                        className={getInputClass(`passenger_${index}_firstName`)}
                       />
+                      {touchedFields.has(`passenger_${index}_firstName`) && fieldErrors[`passenger_${index}_firstName`] && (
+                        <p className="text-red-400 text-xs mt-1 flex items-center gap-1">
+                          <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
+                            <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                          </svg>
+                          {fieldErrors[`passenger_${index}_firstName`]}
+                        </p>
+                      )}
                     </div>
                     <div>
                       <label className="text-white/60 text-sm mb-1 block">Apellido</label>
@@ -324,9 +494,18 @@ export default function BookingPage() {
                         type="text"
                         value={passenger.lastName}
                         onChange={(e) => handlePassengerChange(index, 'lastName', e.target.value)}
-                        required
-                        className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-volaris-red/50 transition-colors"
+                        onBlur={() => handleBlur(`passenger_${index}_lastName`)}
+                        placeholder="Como aparece en tu documento"
+                        className={getInputClass(`passenger_${index}_lastName`)}
                       />
+                      {touchedFields.has(`passenger_${index}_lastName`) && fieldErrors[`passenger_${index}_lastName`] && (
+                        <p className="text-red-400 text-xs mt-1 flex items-center gap-1">
+                          <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
+                            <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                          </svg>
+                          {fieldErrors[`passenger_${index}_lastName`]}
+                        </p>
+                      )}
                     </div>
                     <div>
                       <label className="text-white/60 text-sm mb-1 block">Fecha de nacimiento</label>
@@ -334,40 +513,69 @@ export default function BookingPage() {
                         type="date"
                         value={passenger.dateOfBirth}
                         onChange={(e) => handlePassengerChange(index, 'dateOfBirth', e.target.value)}
+                        onBlur={() => handleBlur(`passenger_${index}_dateOfBirth`)}
                         max={new Date().toISOString().split('T')[0]}
-                        required
-                        className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-volaris-red/50 transition-colors"
+                        className={getInputClass(`passenger_${index}_dateOfBirth`)}
                       />
+                      {touchedFields.has(`passenger_${index}_dateOfBirth`) && fieldErrors[`passenger_${index}_dateOfBirth`] && (
+                        <p className="text-red-400 text-xs mt-1 flex items-center gap-1">
+                          <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
+                            <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                          </svg>
+                          {fieldErrors[`passenger_${index}_dateOfBirth`]}
+                        </p>
+                      )}
                     </div>
                     <div>
                       <label className="text-white/60 text-sm mb-1 block">Tipo de documento</label>
                       <select
                         value={passenger.documentType}
                         onChange={(e) => handlePassengerChange(index, 'documentType', e.target.value)}
-                        className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-volaris-red/50 transition-colors"
+                        className={getInputClass(`passenger_${index}_documentType`)}
                       >
                         <option value="passport" className="bg-slate-800">Pasaporte</option>
-                        <option value="driving_licence" className="bg-slate-800">Licencia</option>
+                        <option value="driving_licence" className="bg-slate-800">Licencia de conducir</option>
                         <option value="national_identity_document" className="bg-slate-800">INE</option>
                       </select>
                     </div>
                     <div className="md:col-span-2">
-                      <label className="text-white/60 text-sm mb-1 block">Número de documento</label>
+                      <label className="text-white/60 text-sm mb-1 block">
+                        Número de documento
+                        {passenger.documentType === 'national_identity_document' && ' (13 o 18 dígitos)'}
+                      </label>
                       <input
                         type="text"
                         value={passenger.documentNumber}
                         onChange={(e) => handlePassengerChange(index, 'documentNumber', e.target.value)}
-                        required
-                        className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-volaris-red/50 transition-colors"
+                        onBlur={() => handleBlur(`passenger_${index}_documentNumber`)}
+                        placeholder={
+                          passenger.documentType === 'passport' ? 'ABC123456' :
+                          passenger.documentType === 'national_identity_document' ? '0000000000000' :
+                          'Licencia123456'
+                        }
+                        className={getInputClass(`passenger_${index}_documentNumber`)}
                       />
+                      {touchedFields.has(`passenger_${index}_documentNumber`) && fieldErrors[`passenger_${index}_documentNumber`] && (
+                        <p className="text-red-400 text-xs mt-1 flex items-center gap-1">
+                          <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
+                            <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                          </svg>
+                          {fieldErrors[`passenger_${index}_documentNumber`]}
+                        </p>
+                      )}
                     </div>
                   </div>
                 </div>
               ))}
 
-              {error && (
-                <div className="bg-red-500/10 border border-red-500/20 rounded-xl p-4">
-                  <p className="text-red-400">{error}</p>
+              {serverError && (
+                <div className="bg-red-500/10 border border-red-500/30 rounded-xl p-4">
+                  <p className="text-red-400 flex items-center gap-2">
+                    <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                      <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                    </svg>
+                    {serverError}
+                  </p>
                 </div>
               )}
 
