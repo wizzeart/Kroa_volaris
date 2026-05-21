@@ -6,8 +6,17 @@ export async function POST(request: Request) {
     const { offerId, passengers, contact, totalAmount, totalCurrency, offerPassengers } = await request.json()
 
     if (!offerId || !passengers || passengers.length === 0) {
+      console.error('Validation failed:', { offerId, passengersCount: passengers?.length })
       return NextResponse.json(
         { error: 'Missing required fields: offerId, passengers' },
+        { status: 400 }
+      )
+    }
+
+    if (!offerId.startsWith('off_')) {
+      console.error('Invalid offer ID format:', offerId)
+      return NextResponse.json(
+        { error: 'Invalid offer ID format' },
         { status: 400 }
       )
     }
@@ -62,8 +71,10 @@ export async function POST(request: Request) {
     })
 
     console.log('Phone formatted:', formattedPhone)
+    console.log('Offer ID:', offerId)
+    console.log('Passengers count:', passengers?.length)
 
-    const order = await (duffel.orders.create as any)({
+    const orderPayload = {
       selected_offers: [{ id: offerId }],
       passengers: passengersForApi,
       payments: [{
@@ -72,7 +83,10 @@ export async function POST(request: Request) {
         amount: totalAmount || '0',
       }],
       metadata: { agency: 'Kroatravel' },
-    })
+    }
+    console.log('Order payload:', JSON.stringify(orderPayload, null, 2))
+
+    const order = await (duffel.orders.create as any)(orderPayload)
 
     console.log('Order created:', order.data.id)
     return NextResponse.json(order.data)
