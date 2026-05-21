@@ -64,13 +64,13 @@ export async function POST(request: Request) {
     console.log('Phone formatted:', formattedPhone)
 
     const order = await duffel.orders.create({
-      selected_offers: [{ id: offerId }],
-      passengers: passengersForApi,
+      selected_offers: [{ id: offerId }] as any,
+      passengers: passengersForApi as any,
       payments: [{
         type: 'balance' as const,
-        currency: totalCurrency || 'USD',
-        amount: totalAmount || '0',
-      }],
+        currency: (totalCurrency || 'USD') as any,
+        amount: (totalAmount || '0') as any,
+      }] as any,
       metadata: { agency: 'Kroatravel' },
     })
 
