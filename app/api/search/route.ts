@@ -27,7 +27,7 @@ export async function POST(request: Request) {
       passengersArray.push({ type: 'adult' })
     }
 
-    const offerRequest = await duffel.offerRequests.create({
+    const offerRequest = await (duffel.offerRequests.create as any)({
       slices: [
         {
           origin,

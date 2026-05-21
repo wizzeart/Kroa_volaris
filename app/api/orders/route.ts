@@ -13,7 +13,7 @@ export async function GET() {
       apiVersion: 'v2',
     })
 
-    const orders = await duffel.orders.list({ limit: 50 })
+    const orders = await (duffel.orders.list as any)({ limit: 50 })
 
     return NextResponse.json(orders.data)
   } catch (error: any) {

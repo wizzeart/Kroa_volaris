@@ -16,9 +16,9 @@ export async function GET(request: Request) {
       return NextResponse.json({ error: 'DUFFEL_ACCESS_TOKEN not configured' }, { status: 500 })
     }
 
-    const duffel = new Duffel({ token })
+    const duffel = new Duffel({ token, apiVersion: 'v2' })
 
-    const offer = await duffel.offers.get(offerId, {
+    const offer = await (duffel.offers.get as any)(offerId, {
       return_available_services: returnServices,
     })
 
