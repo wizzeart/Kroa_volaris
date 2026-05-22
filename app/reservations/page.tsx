@@ -40,6 +40,12 @@ export default function ReservationsPage() {
   const [searchQuery, setSearchQuery] = useState('')
   const [dateFilter, setDateFilter] = useState<'all' | 'week' | 'month' | 'year'>('all')
 
+  const [showCancelModal, setShowCancelModal] = useState(false)
+  const [selectedOrder, setSelectedOrder] = useState<Order | null>(null)
+  const [cancellationData, setCancellationData] = useState<any>(null)
+  const [cancelLoading, setCancelLoading] = useState(false)
+  const [cancelError, setCancelError] = useState<string | null>(null)
+
   useEffect(() => {
     fetchOrders()
   }, [])
@@ -58,6 +64,67 @@ export default function ReservationsPage() {
     } finally {
       setLoading(false)
     }
+  }
+
+  const handleCancelClick = (order: Order) => {
+    setSelectedOrder(order)
+    setCancellationData(null)
+    setCancelError(null)
+    setShowCancelModal(true)
+  }
+
+  const requestCancellation = async () => {
+    if (!selectedOrder) return
+    setCancelLoading(true)
+    setCancelError(null)
+    try {
+      const response = await fetch('/api/cancel', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ orderId: selectedOrder.id }),
+      })
+      const data = await response.json()
+      if (response.ok) {
+        setCancellationData(data)
+      } else {
+        setCancelError(data.error || 'Error al solicitar cancelación')
+      }
+    } catch (err) {
+      setCancelError('Error al conectar con el servidor')
+    } finally {
+      setCancelLoading(false)
+    }
+  }
+
+  const confirmCancellation = async () => {
+    if (!cancellationData?.id) return
+    setCancelLoading(true)
+    setCancelError(null)
+    try {
+      const response = await fetch('/api/cancel/confirm', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ cancellationId: cancellationData.id }),
+      })
+      const data = await response.json()
+      if (response.ok) {
+        setShowCancelModal(false)
+        fetchOrders()
+      } else {
+        setCancelError(data.error || 'Error al confirmar cancelación')
+      }
+    } catch (err) {
+      setCancelError('Error al conectar con el servidor')
+    } finally {
+      setCancelLoading(false)
+    }
+  }
+
+  const closeCancelModal = () => {
+    setShowCancelModal(false)
+    setSelectedOrder(null)
+    setCancellationData(null)
+    setCancelError(null)
   }
 
   const filteredOrders = useMemo(() => {
@@ -446,13 +513,101 @@ export default function ReservationsPage() {
 
                 <div className="bg-white/5 px-6 py-3 flex justify-between items-center">
                   <span className="text-white/40 text-xs">Creado: {formatDate(order.created_at)}</span>
-                  <span className="text-volaris-red text-xs font-medium">Kroatravel</span>
+                  <div className="flex items-center gap-2">
+                    {order.status === 'confirmed' && (
+                      <button
+                        onClick={() => handleCancelClick(order)}
+                        className="text-red-400 hover:text-red-300 text-xs font-medium transition-colors"
+                      >
+                        Cancelar
+                      </button>
+                    )}
+                    <span className="text-volaris-red text-xs font-medium">Kroatravel</span>
+                  </div>
                 </div>
               </div>
             ))}
           </div>
         )}
       </main>
+
+      {showCancelModal && selectedOrder && (
+        <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-slate-800 rounded-2xl border border-white/10 w-full max-w-md overflow-hidden">
+            <div className="bg-gradient-to-r from-red-600 to-orange-500 p-4">
+              <h3 className="text-white font-bold text-lg">Cancelar Reservación</h3>
+            </div>
+            <div className="p-6">
+              {!cancellationData ? (
+                <>
+                  <p className="text-white/80 mb-4">
+                    ¿Estás seguro de que deseas cancelar la reservación <span className="font-mono text-white">{selectedOrder.id}</span>?
+                  </p>
+                  <p className="text-white/60 text-sm mb-6">Esta acción no se puede deshacer.</p>
+                  {cancelError && (
+                    <div className="bg-red-500/10 border border-red-500/20 rounded-xl p-3 mb-4">
+                      <p className="text-red-400 text-sm">{cancelError}</p>
+                    </div>
+                  )}
+                  <div className="flex gap-3">
+                    <button
+                      onClick={closeCancelModal}
+                      className="flex-1 px-4 py-2 rounded-xl border border-white/20 text-white/80 hover:bg-white/5 transition-colors"
+                    >
+                      Cerrar
+                    </button>
+                    <button
+                      onClick={requestCancellation}
+                      disabled={cancelLoading}
+                      className="flex-1 px-4 py-2 rounded-xl bg-red-600 text-white font-medium hover:bg-red-700 transition-colors disabled:opacity-50"
+                    >
+                      {cancelLoading ? 'Procesando...' : 'Solicitar Cancelación'}
+                    </button>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <div className="text-center mb-6">
+                    <div className="text-4xl font-bold text-white mb-2">
+                      {cancellationData.refund_amount} {cancellationData.refund_currency}
+                    </div>
+                    <p className="text-white/60 text-sm">Monto a reembolsar</p>
+                  </div>
+                  <div className="bg-white/5 rounded-xl p-4 mb-4">
+                    <p className="text-white/60 text-xs mb-1">Expira:</p>
+                    <p className="text-white font-medium">
+                      {new Date(cancellationData.expires_at).toLocaleString('es-MX')}
+                    </p>
+                  </div>
+                  <p className="text-white/60 text-sm mb-6">
+                    El reembolso se procesará a: <span className="text-white">{cancellationData.refund_to}</span>
+                  </p>
+                  {cancelError && (
+                    <div className="bg-red-500/10 border border-red-500/20 rounded-xl p-3 mb-4">
+                      <p className="text-red-400 text-sm">{cancelError}</p>
+                    </div>
+                  )}
+                  <div className="flex gap-3">
+                    <button
+                      onClick={closeCancelModal}
+                      className="flex-1 px-4 py-2 rounded-xl border border-white/20 text-white/80 hover:bg-white/5 transition-colors"
+                    >
+                      Cerrar
+                    </button>
+                    <button
+                      onClick={confirmCancellation}
+                      disabled={cancelLoading}
+                      className="flex-1 px-4 py-2 rounded-xl bg-emerald-600 text-white font-medium hover:bg-emerald-700 transition-colors disabled:opacity-50"
+                    >
+                      {cancelLoading ? 'Confirmando...' : 'Confirmar Cancelación'}
+                    </button>
+                  </div>
+                </>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
