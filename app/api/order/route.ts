@@ -81,6 +81,14 @@ export async function POST(request: Request) {
     }
     console.log('Order payload:', JSON.stringify(orderPayload, null, 2))
 
+    // First verify the offer still exists and is valid
+    try {
+      const offerCheck = await (duffel.offers.get as any)(offerId)
+      console.log('Offer still valid, expires_at:', offerCheck.data?.expires_at)
+    } catch (offerError: any) {
+      console.error('Offer check failed:', offerError.message)
+    }
+
     const order = await (duffel.orders.create as any)(orderPayload)
 
     console.log('Order created:', order.data.id)
