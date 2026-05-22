@@ -53,12 +53,13 @@ export async function POST(request: Request) {
       formattedPhone = '+525555555555'
     }
 
-    const passengersForApi = passengers.map((p: any) => {
+const passengersForApi = passengers.map((p: any, index: number) => {
       return {
+        id: `psg_${index + 1}`,
         given_name: String(p.given_name || p.first_name || ''),
         family_name: String(p.family_name || p.last_name || ''),
-        title: (p.title || 'mr').toLowerCase(),
-        gender: (p.gender || 'm').toUpperCase(),
+        title: String(p.title || 'mr').toLowerCase(),
+        gender: (p.gender || 'm').toLowerCase() === 'm' ? 'male' : 'female',
         born_on: String(p.born_on || ''),
         email: String(contact?.email || ''),
         phone_number: formattedPhone,
