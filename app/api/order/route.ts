@@ -54,16 +54,14 @@ export async function POST(request: Request) {
     }
 
     const passengersForApi = passengers.map((p: any, index: number) => {
-      const offerP = offerPassengers?.[index]
       return {
-        id: offerP?.passenger_id || offerP?.id || undefined,
         type: 'adult',
-        title: 'mr',
-        given_name: String(p.first_name || ''),
-        family_name: String(p.last_name || ''),
-        gender: 'M',
+        title: p.title || 'mr',
+        given_name: String(p.first_name || p.given_name || ''),
+        family_name: String(p.last_name || p.family_name || ''),
+        gender: p.gender || 'M',
         born_on: String(p.born_on || ''),
-        email: String(contact?.email || 'cliente@example.com'),
+        email: String(contact?.email || ''),
         phone_number: formattedPhone,
         document_type: String(p.document_type || 'passport'),
         document_number: String(p.document_number || ''),
@@ -72,7 +70,10 @@ export async function POST(request: Request) {
 
     console.log('Phone formatted:', formattedPhone)
     console.log('Offer ID:', offerId)
+    console.log('Offer ID type:', typeof offerId)
+    console.log('Offer ID starts with off_:', offerId?.startsWith('off_'))
     console.log('Passengers count:', passengers?.length)
+    console.log('Passengers sample:', JSON.stringify(passengersForApi[0], null, 2))
 
     const orderPayload = {
       selected_offers: [{ id: offerId }],

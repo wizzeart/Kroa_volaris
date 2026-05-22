@@ -229,6 +229,13 @@ export default function BookingPage() {
         document_number: p.documentNumber.trim(),
       }))
 
+      console.log('Submitting booking with:', {
+        offerId: offer?.id,
+        offerIdType: typeof offer?.id,
+        passengersCount: passengersForApi.length,
+        contact
+      })
+
       const response = await fetch('/api/order', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
