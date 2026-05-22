@@ -34,37 +34,39 @@ export async function POST(request: Request) {
     const phoneRaw = contact?.phone || ''
     let phoneDigits = phoneRaw.replace(/\D/g, '')
 
-    if (phoneDigits.length < 10) {
-      phoneDigits = '55' + phoneDigits.padStart(8, '0').slice(-8)
+    // Ensure proper country code
+    if (!phoneDigits.startsWith('52')) {
+      // If it doesn't start with 52, assume it's a 10-digit Mexican number
+      if (phoneDigits.length === 10) {
+        phoneDigits = '52' + phoneDigits
+      }
     }
 
-    let formattedPhone: string
-    if (phoneDigits.startsWith('521')) {
-      formattedPhone = '+' + phoneDigits
-    } else if (phoneDigits.startsWith('52')) {
-      formattedPhone = '+' + phoneDigits
-    } else if (phoneDigits.startsWith('1') && phoneDigits.length === 11) {
-      formattedPhone = '+' + phoneDigits
-    } else {
-      formattedPhone = '+52' + phoneDigits
+    const formattedPhone = '+' + phoneDigits
+    const e164Pattern = /^\+52\d{10}$/
+    
+    if (!e164Pattern.test(formattedPhone)) {
+      console.error('Phone validation failed:', { original: phoneRaw, formatted: formattedPhone })
     }
 
-    if (formattedPhone.length < 12) {
-      formattedPhone = '+525555555555'
-    }
-
-const passengersForApi = passengers.map((p: any, index: number) => {
+    const passengersForApi = passengers.map((p: any) => {
+      // Normalize gender: accept 'male'/'m'/'mr' -> 'm', 'female'/'f'/'mrs'/'ms' -> 'f'
+      let gender = String(p.gender || 'm').toLowerCase()
+      if (gender === 'mr' || gender === 'male' || gender === 'h') gender = 'm'
+      if (gender === 'mrs' || gender === 'female' || gender === 'ms' || gender === 'f' || gender === 'm') {
+        gender = gender === 'f' || gender === 'female' || gender === 'mrs' || gender === 'ms' ? 'f' : 'm'
+      }
+      
       return {
-        id: `psg_${index + 1}`,
-        given_name: String(p.given_name || p.first_name || ''),
-        family_name: String(p.family_name || p.last_name || ''),
+        given_name: String(p.given_name || p.first_name || '').trim(),
+        family_name: String(p.family_name || p.last_name || '').trim(),
         title: String(p.title || 'mr').toLowerCase(),
-        gender: (p.gender || 'm').toLowerCase() === 'm' ? 'male' : 'female',
-        born_on: String(p.born_on || ''),
-        email: String(contact?.email || ''),
+        gender: gender,
+        born_on: String(p.born_on || '').trim(),
+        email: String(contact?.email || '').trim().toLowerCase(),
         phone_number: formattedPhone,
         document_type: String(p.document_type || 'passport').toLowerCase(),
-        document_number: String(p.document_number || ''),
+        document_number: String(p.document_number || '').trim(),
       }
     })
 

@@ -215,11 +215,11 @@ export default function BookingPage() {
 
     try {
       const passengersForApi = passengers.map((p, i) => ({
-        id: `passenger_${i + 1}`,
         type: 'adult',
         title: 'mr',
-        first_name: p.firstName.trim(),
-        last_name: p.lastName.trim(),
+        given_name: p.firstName.trim(),
+        family_name: p.lastName.trim(),
+        gender: 'm',
         born_on: p.dateOfBirth,
         email: contact.email.trim().toLowerCase(),
         phone_number: contact.phone.replace(/\D/g, '').startsWith('52')
