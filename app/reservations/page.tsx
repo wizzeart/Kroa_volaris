@@ -258,7 +258,7 @@ export default function ReservationsPage() {
               {filteredOrders.length} {filteredOrders.length === 1 ? 'reservación' : 'reservaciones'}
               {filteredOrders.length !== orders.length && ` de ${orders.length} totales`}
             </p>
-          <div className="flex items-center gap-4 mt-4">
+            <div className="flex items-center gap-4 mt-4">
               <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium bg-emerald-500/20 text-emerald-400 border border-emerald-500/30`}>
                 <span>✓</span>
                 {orders.filter(o => o.status === 'confirmed').length} Confirmados
@@ -528,10 +528,10 @@ export default function ReservationsPage() {
                 <div className="bg-white/5 px-6 py-3 flex justify-between items-center">
                   <span className="text-white/40 text-xs">Creado: {formatDate(order.created_at)}</span>
                   <div className="flex items-center gap-2">
-                    {order.status === 'confirmed' && (
+                    {order.status !== 'cancelled' && (
                       <button
                         onClick={() => handleCancelClick(order)}
-                        className="text-red-400 hover:text-red-300 text-xs font-medium transition-colors px-2 py-1 rounded-lg hover:bg-red-500/10"
+                        className="text-red-400 hover:text-red-300 text-xs font-medium transition-colors px-3 py-1.5 rounded-lg hover:bg-red-500/20 border border-red-500/30"
                       >
                         Cancelar
                       </button>
