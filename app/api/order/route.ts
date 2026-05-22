@@ -113,9 +113,38 @@ export async function POST(request: Request) {
 
   } catch (error: any) {
     console.error('Booking error:', error)
+    
+    // Extract detailed error information
+    let errorMessage = 'Error al procesar la reservación'
+    let errorCode = 'unknown_error'
+    
+    if (error?.errors?.[0]) {
+      const apiError = error.errors[0]
+      errorCode = apiError.code || 'unknown_error'
+      
+      // Map specific error codes to user-friendly messages
+      if (apiError.code === 'offer_no_longer_available') {
+        errorMessage = 'La tarifa seleccionada ya no está disponible. Por favor realiza una nueva búsqueda.'
+      } else if (apiError.code === 'invalid_phone_number') {
+        errorMessage = 'El número de teléfono no es válido. Verifica el formato.'
+      } else if (apiError.code === 'validation_required' && apiError.message?.includes('id')) {
+        errorMessage = 'Hubo un problema con los datos del pasajero. Intenta de nuevo.'
+      } else if (apiError.code === 'not_found') {
+        errorMessage = 'No se encontraron datos requeridos. Por favor realiza una nueva búsqueda.'
+      } else {
+        errorMessage = apiError.message || errorMessage
+      }
+    }
+    
     const errorDetails = error?.response?.data || error?.message
+    console.error('Booking error details:', { errorCode, errorMessage, errorDetails })
+    
     return NextResponse.json(
-      { error: error.message || 'Failed to create booking', details: errorDetails },
+      { 
+        error: errorMessage,
+        errorCode: errorCode,
+        details: errorDetails 
+      },
       { status: 500 }
     )
   }

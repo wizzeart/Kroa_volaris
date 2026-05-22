@@ -258,10 +258,17 @@ export default function BookingPage() {
         sessionStorage.removeItem('searchResults')
         sessionStorage.removeItem('searchParams')
       } else {
+        // Show specific error message from backend
         setServerError(data.error || 'Error al realizar la reservación')
+        
+        // Log error details for debugging
+        if (data.errorCode) {
+          console.error('Booking error code:', data.errorCode)
+        }
       }
     } catch (err) {
       setServerError('Error al conectar con el servidor')
+      console.error('Connection error:', err)
     } finally {
       setLoading(false)
     }
@@ -577,13 +584,59 @@ export default function BookingPage() {
               ))}
 
               {serverError && (
-                <div className="bg-red-500/10 border border-red-500/30 rounded-xl p-4">
-                  <p className="text-red-400 flex items-center gap-2">
-                    <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                <div className="bg-red-500/10 border border-red-500/30 rounded-xl p-6 space-y-4">
+                  <div className="flex items-start gap-3">
+                    <svg className="w-6 h-6 text-red-400 flex-shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
                       <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
                     </svg>
-                    {serverError}
-                  </p>
+                    <div className="flex-1">
+                      <p className="text-red-400 font-semibold">Oops, algo salió mal</p>
+                      <p className="text-red-300 text-sm mt-1">{serverError}</p>
+                    </div>
+                  </div>
+                  
+                  <div className="flex flex-col sm:flex-row gap-3 pt-2 border-t border-red-500/20">
+                    {serverError.includes('ya no está disponible') ? (
+                      <>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            router.push('/search')
+                          }}
+                          className="flex-1 bg-red-600/50 hover:bg-red-600 text-white font-semibold px-4 py-2 rounded-lg transition-colors text-sm"
+                        >
+                          Nueva búsqueda
+                        </button>
+                        <p className="text-red-300 text-xs flex items-center gap-2 self-center sm:self-auto">
+                          <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                          </svg>
+                          Las tarifas cambian constantemente
+                        </p>
+                      </>
+                    ) : (
+                      <>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setServerError(null)
+                          }}
+                          className="flex-1 bg-red-600/50 hover:bg-red-600 text-white font-semibold px-4 py-2 rounded-lg transition-colors text-sm"
+                        >
+                          Reintentar
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            router.push('/search')
+                          }}
+                          className="flex-1 bg-white/5 hover:bg-white/10 text-white font-semibold px-4 py-2 rounded-lg transition-colors text-sm"
+                        >
+                          Volver a buscar
+                        </button>
+                      </>
+                    )}
+                  </div>
                 </div>
               )}
 
