@@ -53,17 +53,16 @@ export async function POST(request: Request) {
       formattedPhone = '+525555555555'
     }
 
-    const passengersForApi = passengers.map((p: any, index: number) => {
+    const passengersForApi = passengers.map((p: any) => {
       return {
-        type: 'adult',
-        title: p.title || 'mr',
-        given_name: String(p.first_name || p.given_name || ''),
-        family_name: String(p.last_name || p.family_name || ''),
-        gender: p.gender || 'M',
+        given_name: String(p.given_name || p.first_name || ''),
+        family_name: String(p.family_name || p.last_name || ''),
+        title: (p.title || 'mr').toLowerCase(),
+        gender: (p.gender || 'm').toUpperCase(),
         born_on: String(p.born_on || ''),
         email: String(contact?.email || ''),
         phone_number: formattedPhone,
-        document_type: String(p.document_type || 'passport'),
+        document_type: String(p.document_type || 'passport').toLowerCase(),
         document_number: String(p.document_number || ''),
       }
     })
@@ -78,11 +77,6 @@ export async function POST(request: Request) {
     const orderPayload = {
       selected_offers: [{ id: offerId }],
       passengers: passengersForApi,
-      payments: [{
-        type: 'balance',
-        currency: totalCurrency || 'USD',
-        amount: totalAmount || '0',
-      }],
       metadata: { agency: 'Kroatravel' },
     }
     console.log('Order payload:', JSON.stringify(orderPayload, null, 2))
