@@ -43,7 +43,7 @@ export async function POST(request: Request) {
     }
 
     const formattedPhone = '+' + phoneDigits
-    const e164Pattern = /^\+52\d{10}$/
+    const e164Pattern = /^\+52\d{10,11}$/
     
     if (!e164Pattern.test(formattedPhone)) {
       console.error('Phone validation failed:', { original: phoneRaw, formatted: formattedPhone })
@@ -57,8 +57,8 @@ export async function POST(request: Request) {
         gender = gender === 'f' || gender === 'female' || gender === 'mrs' || gender === 'ms' ? 'f' : 'm'
       }
       
-      return {
-        id: p.id || `psg_${index + 1}`,
+      // Build passenger object - don't include id field as Duffel doesn't recognize custom IDs
+      const passenger: any = {
         given_name: String(p.given_name || p.first_name || '').trim(),
         family_name: String(p.family_name || p.last_name || '').trim(),
         title: String(p.title || 'mr').toLowerCase(),
@@ -69,6 +69,13 @@ export async function POST(request: Request) {
         document_type: String(p.document_type || 'passport').toLowerCase(),
         document_number: String(p.document_number || '').trim(),
       }
+      
+      // Only add id if it comes from the offer passengers
+      if (offerPassengers && offerPassengers[index]?.passenger_id) {
+        passenger.id = offerPassengers[index].passenger_id
+      }
+      
+      return passenger
     })
 
     console.log('Phone formatted:', formattedPhone)
@@ -76,6 +83,7 @@ export async function POST(request: Request) {
     console.log('Offer ID type:', typeof offerId)
     console.log('Offer ID starts with off_:', offerId?.startsWith('off_'))
     console.log('Passengers count:', passengers?.length)
+    console.log('Offer passengers:', JSON.stringify(offerPassengers, null, 2))
     console.log('Passengers sample:', JSON.stringify(passengersForApi[0], null, 2))
 
     const orderPayload = {
