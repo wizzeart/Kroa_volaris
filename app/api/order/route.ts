@@ -75,7 +75,7 @@ export async function POST(request: Request) {
     console.log('Passengers sample:', JSON.stringify(passengersForApi[0], null, 2))
 
     const orderPayload = {
-      selected_offers: [{ id: offerId }],
+      selected_offers: [offerId],
       passengers: passengersForApi,
       metadata: { agency: 'Kroatravel' },
     }
