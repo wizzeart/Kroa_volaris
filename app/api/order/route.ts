@@ -43,10 +43,10 @@ export async function POST(request: Request) {
     }
 
     const formattedPhone = '+' + phoneDigits
-    const e164Pattern = /^\+52\d{10,11}$/
+    const e164Pattern = /^\+52\d{9,11}$/
     
     if (!e164Pattern.test(formattedPhone)) {
-      console.error('Phone validation failed:', { original: phoneRaw, formatted: formattedPhone })
+      console.error('Phone validation failed:', { original: phoneRaw, formatted: formattedPhone, pattern: e164Pattern.toString() })
     }
 
     const passengersForApi = passengers.map((p: any, index: number) => {
