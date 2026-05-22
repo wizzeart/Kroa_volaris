@@ -258,6 +258,20 @@ export default function ReservationsPage() {
               {filteredOrders.length} {filteredOrders.length === 1 ? 'reservación' : 'reservaciones'}
               {filteredOrders.length !== orders.length && ` de ${orders.length} totales`}
             </p>
+          <div className="flex items-center gap-4 mt-4">
+              <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium bg-emerald-500/20 text-emerald-400 border border-emerald-500/30`}>
+                <span>✓</span>
+                {orders.filter(o => o.status === 'confirmed').length} Confirmados
+              </span>
+              <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium bg-amber-500/20 text-amber-400 border border-amber-500/30`}>
+                <span>◐</span>
+                {orders.filter(o => o.status === 'pending').length} Pendientes
+              </span>
+              <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium bg-red-500/20 text-red-400 border border-red-500/30`}>
+                <span>✗</span>
+                {orders.filter(o => o.status === 'cancelled').length} Cancelados
+              </span>
+            </div>
           </div>
 
           <div className="flex items-center gap-2">
@@ -517,7 +531,7 @@ export default function ReservationsPage() {
                     {order.status === 'confirmed' && (
                       <button
                         onClick={() => handleCancelClick(order)}
-                        className="text-red-400 hover:text-red-300 text-xs font-medium transition-colors"
+                        className="text-red-400 hover:text-red-300 text-xs font-medium transition-colors px-2 py-1 rounded-lg hover:bg-red-500/10"
                       >
                         Cancelar
                       </button>
