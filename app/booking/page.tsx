@@ -215,6 +215,7 @@ export default function BookingPage() {
 
     try {
       const passengersForApi = passengers.map((p, i) => ({
+        id: `psg_${i + 1}`,
         type: 'adult',
         title: 'mr',
         given_name: p.firstName.trim(),

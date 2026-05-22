@@ -49,7 +49,7 @@ export async function POST(request: Request) {
       console.error('Phone validation failed:', { original: phoneRaw, formatted: formattedPhone })
     }
 
-    const passengersForApi = passengers.map((p: any) => {
+    const passengersForApi = passengers.map((p: any, index: number) => {
       // Normalize gender: accept 'male'/'m'/'mr' -> 'm', 'female'/'f'/'mrs'/'ms' -> 'f'
       let gender = String(p.gender || 'm').toLowerCase()
       if (gender === 'mr' || gender === 'male' || gender === 'h') gender = 'm'
@@ -58,6 +58,7 @@ export async function POST(request: Request) {
       }
       
       return {
+        id: p.id || `psg_${index + 1}`,
         given_name: String(p.given_name || p.first_name || '').trim(),
         family_name: String(p.family_name || p.last_name || '').trim(),
         title: String(p.title || 'mr').toLowerCase(),
