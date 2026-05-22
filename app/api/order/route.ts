@@ -78,6 +78,11 @@ const passengersForApi = passengers.map((p: any, index: number) => {
     const orderPayload = {
       selected_offers: [offerId],
       passengers: passengersForApi,
+      payments: [{
+        type: 'balance',
+        currency: totalCurrency || 'USD',
+        amount: totalAmount || '0',
+      }],
       metadata: { agency: 'Kroatravel' },
     }
     console.log('Order payload:', JSON.stringify(orderPayload, null, 2))
